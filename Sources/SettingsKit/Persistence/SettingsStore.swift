@@ -130,6 +130,10 @@ public final class SettingsStore: Observable, Sendable {
     ///   - value: The new value. A value whose representation is `nil`, such
     ///     as `Optional.none`, removes the persisted value.
     ///   - key: The setting key.
+    ///
+    /// The value replaces a persisted value that the backend cannot read, such
+    /// as one of a type that settings storage cannot represent.
+    ///
     /// - Throws: An error if the value cannot be represented, or an error that
     ///   the storage backend reports. The store retains the previous value.
     public func setValue<Value>(_ value: Value, for key: SettingKey<Value>) throws {
@@ -137,6 +141,8 @@ public final class SettingsStore: Observable, Sendable {
     }
 
     /// Removes the persisted value for a setting, restoring its default value.
+    ///
+    /// This also removes a persisted value that the backend cannot read.
     ///
     /// - Parameter key: The setting key.
     /// - Throws: An error that the storage backend reports.
@@ -175,9 +181,17 @@ public final class SettingsStore: Observable, Sendable {
 
     private func write(_ representation: SettingRepresentation?, forKey key: String) throws {
         // Reads the current value outside the cache lock, because a backend may
-        // report changes synchronously from within its own methods.
-        let previous = try self.representation(forKey: key)
-        guard previous != representation else {
+        // report changes synchronously from within its own methods. A value
+        // that cannot be read, such as one of an unsupported type written by
+        // other code, does not prevent replacing or removing it; `nil` here
+        // records that the previous value is unknown.
+        let previous: SettingRepresentation??
+        do {
+            previous = .some(try self.representation(forKey: key))
+        } catch {
+            previous = nil
+        }
+        if let previous, previous == representation {
             // Writes through anyway, in case the backend changed without
             // reporting it, but observers already have the current value.
             try persist(representation, forKey: key)
@@ -193,7 +207,9 @@ public final class SettingsStore: Observable, Sendable {
                 try persist(representation, forKey: key)
             } catch {
                 cache.withLock {
-                    $0[key] = .some(previous)
+                    // An unknown previous value removes the entry, so the
+                    // next read consults the backend again.
+                    $0[key] = previous
                 }
                 throw error
             }

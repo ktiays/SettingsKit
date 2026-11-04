@@ -8,6 +8,15 @@ import Synchronization
 /// written directly to user defaults with those types, or as dates, are read
 /// back as the corresponding representation.
 ///
+/// Arrays and dictionaries written directly to user defaults, for example by
+/// `UserDefaults.set(_:forKey:)` before an app adopted SettingsKit, are read as
+/// a string representation of their JSON encoding when they contain only
+/// strings, numbers, Booleans, arrays, and dictionaries with string keys. This
+/// is the representation of arrays, sets, dictionaries, and other
+/// ``CodableSettingValue`` types, so their persisted values remain readable.
+/// Writing such a setting replaces the property list value with the encoded
+/// JSON string.
+///
 /// The backend reports changes made through any `UserDefaults` instance in the
 /// current process. It does not observe changes made by other processes.
 //
@@ -86,6 +95,12 @@ public final class UserDefaultsSettingsStorage: SettingsStorage, @unchecked Send
             return .data(data)
         case let date as Date:
             return .double(date.timeIntervalSinceReferenceDate)
+        case is [Any], is [String: Any]:
+            guard JSONSerialization.isValidJSONObject(object),
+                  let data = try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys]) else {
+                throw SettingsStorageError.unsupportedValue(key: key)
+            }
+            return .string(String(decoding: data, as: UTF8.self))
         default:
             throw SettingsStorageError.unsupportedValue(key: key)
         }

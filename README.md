@@ -77,7 +77,9 @@ struct GeneralSettingsContent: View {
 
 Settings use `UserDefaults.standard` by default. To use SQLite, in-memory storage, or a custom `SettingsStorage` implementation, pass a `SettingsStore` through `.settingsStore(_:)` on a scene or view.
 
-Raw-value enumerations can conform to `SettingValue`; custom Codable models can conform to `CodableSettingValue`.
+A `SettingsStore` does not depend on the settings interface. Models and other non-view code can read and write it with its key subscript, and observe it with Swift Observation.
+
+Raw-value enumerations can conform to `SettingValue`; custom Codable models can conform to `CodableSettingValue`. Arrays, sets, dictionaries, and Codable models persist as JSON. The user defaults backend also reads property list arrays and dictionaries that other code wrote directly, so adopting SettingsKit keeps existing values.
 
 ## Example
 

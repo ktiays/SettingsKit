@@ -74,6 +74,54 @@ private struct FailingSettingsStorage: SettingsStorage {
     }
 }
 
+/// A backend whose persisted value cannot be read until it is replaced or removed.
+private final class UnreadableSettingsStorage: SettingsStorage {
+    struct ReadError: Error {
+    }
+
+    let values = Mutex<[String: SettingRepresentation]>([:])
+    let unreadableKeys: Mutex<Set<String>>
+    let failsWrites: Bool
+
+    init(unreadableKeys: Set<String>, failsWrites: Bool = false) {
+        self.unreadableKeys = Mutex(unreadableKeys)
+        self.failsWrites = failsWrites
+    }
+
+    func value(forKey key: String) throws -> SettingRepresentation? {
+        if unreadableKeys.withLock({ $0.contains(key) }) {
+            throw ReadError()
+        }
+        return values.withLock {
+            $0[key]
+        }
+    }
+
+    func setValue(_ value: SettingRepresentation, forKey key: String) throws {
+        if failsWrites {
+            throw FailingSettingsStorage.WriteError()
+        }
+        unreadableKeys.withLock {
+            _ = $0.remove(key)
+        }
+        values.withLock {
+            $0[key] = value
+        }
+    }
+
+    func removeValue(forKey key: String) throws {
+        if failsWrites {
+            throw FailingSettingsStorage.WriteError()
+        }
+        unreadableKeys.withLock {
+            _ = $0.remove(key)
+        }
+        values.withLock {
+            $0[key] = nil
+        }
+    }
+}
+
 /// Records whether an observation-tracked read was invalidated.
 private final class ChangeFlag: Sendable {
     private let state = Mutex(false)
@@ -191,5 +239,33 @@ struct SettingsStoreTests {
             try store.setValue(8, for: .testTabWidth)
         }
         #expect(store[.testTabWidth] == 4)
+    }
+
+    @Test func replacesAndRemovesUnreadableValues() throws {
+        let storage = UnreadableSettingsStorage(unreadableKeys: ["test.tabWidth", "test.showsLineNumbers"])
+        let store = SettingsStore(storage: storage)
+        #expect(throws: UnreadableSettingsStorage.ReadError.self) {
+            try store.value(for: .testTabWidth)
+        }
+        let flag = tracking {
+            _ = store[.testTabWidth]
+        }
+        try store.setValue(8, for: .testTabWidth)
+        #expect(flag.isSet)
+        #expect(try store.value(for: .testTabWidth) == 8)
+
+        try store.resetValue(for: .testShowsLineNumbers)
+        #expect(try store.value(for: .testShowsLineNumbers) == true)
+    }
+
+    @Test func rereadsUnreadableValueAfterFailedWrite() {
+        let storage = UnreadableSettingsStorage(unreadableKeys: ["test.tabWidth"], failsWrites: true)
+        let store = SettingsStore(storage: storage)
+        #expect(throws: FailingSettingsStorage.WriteError.self) {
+            try store.setValue(8, for: .testTabWidth)
+        }
+        #expect(throws: UnreadableSettingsStorage.ReadError.self) {
+            try store.value(for: .testTabWidth)
+        }
     }
 }

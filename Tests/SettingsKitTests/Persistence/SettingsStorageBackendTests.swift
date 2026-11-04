@@ -12,6 +12,18 @@ private let representativeValues: [String: SettingRepresentation] = [
     "emptyData": .data(Data()),
 ]
 
+extension SettingKey where Value == [String] {
+    fileprivate static var testHosts: Self {
+        Self("test.hosts", defaultValue: [])
+    }
+}
+
+extension SettingKey where Value == [String: Int] {
+    fileprivate static var testCounts: Self {
+        Self("test.counts", defaultValue: [:])
+    }
+}
+
 @Suite("SQLite Settings Storage")
 struct SQLiteSettingsStorageTests {
     @Test func roundTripsEveryRepresentation() throws {
@@ -91,13 +103,53 @@ struct UserDefaultsSettingsStorageTests {
     @Test func readsValuesWrittenDirectlyToDefaults() throws {
         try Self.withSuite { defaults, storage throws in
             defaults.set(Date(timeIntervalSinceReferenceDate: 10), forKey: "Settings.date")
-            defaults.set(["array"], forKey: "Settings.array")
             defaults.set(Float(1.5), forKey: "Settings.float")
             #expect(try storage.value(forKey: "date") == .double(10))
             #expect(try storage.value(forKey: "float") == .double(1.5))
-            #expect(throws: SettingsStorageError.unsupportedValue(key: "array")) {
-                try storage.value(forKey: "array")
+        }
+    }
+
+    @Test func readsPropertyListCollectionsAsJSON() throws {
+        try Self.withSuite { defaults, storage throws in
+            defaults.set(["b.example", "*.a.example"], forKey: "Settings.array")
+            defaults.set(["width": 2, "isEnabled": true, "name": "Editor"] as [String: Any], forKey: "Settings.dictionary")
+            #expect(try storage.value(forKey: "array") == .string(#"["b.example","*.a.example"]"#))
+            #expect(try storage.value(forKey: "dictionary") == .string(#"{"isEnabled":true,"name":"Editor","width":2}"#))
+
+            defaults.set(["b.example", "*.a.example"], forKey: "Settings.test.hosts")
+            defaults.set(["width": 2], forKey: "Settings.test.counts")
+            let store = SettingsStore(storage: storage)
+            #expect(store[.testHosts] == ["b.example", "*.a.example"])
+            #expect(store[.testCounts] == ["width": 2])
+        }
+    }
+
+    @Test func rejectsCollectionsThatJSONCannotRepresent() throws {
+        try Self.withSuite { defaults, storage throws in
+            defaults.set([Date()], forKey: "Settings.dates")
+            defaults.set([Data([1])], forKey: "Settings.data")
+            #expect(throws: SettingsStorageError.unsupportedValue(key: "dates")) {
+                try storage.value(forKey: "dates")
             }
+            #expect(throws: SettingsStorageError.unsupportedValue(key: "data")) {
+                try storage.value(forKey: "data")
+            }
+        }
+    }
+
+    @Test func replacesValuesThatCannotBeRead() throws {
+        try Self.withSuite { defaults, storage throws in
+            defaults.set([Date()], forKey: "Settings.test.hosts")
+            defaults.set([Date()], forKey: "Settings.test.counts")
+            let store = SettingsStore(storage: storage)
+            #expect(store[.testHosts] == [])
+
+            store[.testHosts] = ["example.com"]
+            #expect(store[.testHosts] == ["example.com"])
+            #expect(defaults.string(forKey: "Settings.test.hosts") == #"["example.com"]"#)
+
+            try store.resetValue(for: .testCounts)
+            #expect(defaults.object(forKey: "Settings.test.counts") == nil)
         }
     }
 
