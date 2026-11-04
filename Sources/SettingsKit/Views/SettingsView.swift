@@ -125,8 +125,11 @@ public struct SettingsView<SectionID: Hashable, Destination: Hashable, Content: 
     }
 
     public var body: some View {
-        NavigationSplitView {
+        // The sidebar is resizable but never collapses. The constant visibility keeps SwiftUI
+        // from collapsing it, including when restoring a collapsed state saved earlier.
+        NavigationSplitView(columnVisibility: .constant(.all)) {
             SettingsSidebar(catalog: catalog, navigation: navigation, searchText: searchText)
+                .sidebarCollapsingDisabled()
                 .scrollEdgeEffectStyle(sidebarEdgeStyle, for: .top)
                 .navigationSplitViewColumnWidth(min: 220, ideal: 250, max: 320)
         } detail: {
