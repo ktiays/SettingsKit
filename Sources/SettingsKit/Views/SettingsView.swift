@@ -23,7 +23,6 @@ public struct SettingsView<SectionID: Hashable, Destination: Hashable, Content: 
     private let providedNavigation: SettingsNavigation<SectionID, Destination>?
     @State private var ownedNavigation: SettingsNavigation<SectionID, Destination>
     @State private var searchText = ""
-    @FocusState private var isSidebarFocused: Bool
 
     private var navigation: SettingsNavigation<SectionID, Destination> {
         providedNavigation ?? ownedNavigation
@@ -131,13 +130,7 @@ public struct SettingsView<SectionID: Hashable, Destination: Hashable, Content: 
         NavigationSplitView(columnVisibility: .constant(.all)) {
             SettingsSidebar(catalog: catalog, navigation: navigation, searchText: searchText)
                 .sidebarCollapsingDisabled()
-                .focused($isSidebarFocused)
-                .onAppear {
-                    // As in the system settings, the sidebar has the initial focus, so its
-                    // selection shows in the accent color. Otherwise AppKit focuses the first
-                    // text field of the page when the window opens.
-                    isSidebarFocused = true
-                }
+                .sidebarFocusBehavior()
                 .scrollEdgeEffectStyle(sidebarEdgeStyle, for: .top)
                 .navigationSplitViewColumnWidth(min: 220, ideal: 250, max: 320)
         } detail: {
