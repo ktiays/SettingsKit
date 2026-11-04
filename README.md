@@ -55,6 +55,21 @@ For nested pages, use value-based `NavigationLink`s with the `destinationTitle` 
 
 To embed settings in an existing scene, use `SettingsView` and install `SettingsNavigationCommands` with the scene's `.commands` modifier.
 
+To select sections from elsewhere in the app, such as a button that opens settings at a particular section, create a `SettingsNavigation` and pass it to `SettingsWindow` or `SettingsView`:
+
+```swift
+@State private var settingsNavigation = SettingsNavigation<SettingsSectionID, Never>(groups: groups)
+
+// In the scene:
+SettingsWindow(groups: groups, navigation: settingsNavigation) { section in
+    // ...
+}
+
+// Elsewhere:
+settingsNavigation.select(.appearance)
+openWindow(id: "settings")
+```
+
 ## Persistence
 
 Define a typed key and use `@Setting` to bind a control to its stored value:

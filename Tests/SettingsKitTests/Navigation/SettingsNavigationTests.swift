@@ -26,6 +26,23 @@ struct SettingsNavigationTests {
         #expect(!navigation.canGoForward)
     }
 
+    @Test func createsNavigationFromGroups() {
+        let groups = [
+            SettingsGroup<TestSection>("Application", id: "application", sections: [
+                SettingsSection("General", id: .general, systemImage: "gearshape"),
+                SettingsSection("Appearance", id: .appearance, systemImage: "paintpalette"),
+            ]),
+            SettingsGroup<TestSection>("Connections", id: "connections", sections: [
+                SettingsSection("Network", id: .network, systemImage: "network"),
+            ]),
+        ]
+        let navigation = Navigation(groups: groups, initialSection: .appearance)
+        #expect(navigation.sections == [.general, .appearance, .network])
+        #expect(navigation.location == Location(section: .appearance))
+        navigation.select(.network)
+        #expect(navigation.location == Location(section: .network))
+    }
+
     @Test func fallsBackFromAnUnavailableInitialSection() {
         let navigation = makeNavigation(initial: .unavailable)
         #expect(navigation.location?.section == .general)

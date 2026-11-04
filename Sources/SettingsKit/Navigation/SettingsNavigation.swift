@@ -6,6 +6,19 @@ import Observation
 /// Read it with `@Environment(SettingsNavigation<SectionID, Destination>.self)`
 /// to select sections or navigate programmatically. Standard `NavigationLink`
 /// values of type `Destination` participate in the same history.
+///
+/// To navigate from outside the settings interface, create the object yourself
+/// and pass it to the `SettingsView` or `SettingsWindow` initializer that
+/// accepts a navigation:
+///
+/// ```swift
+/// @State private var settingsNavigation = SettingsNavigation<SettingsSectionID, Never>(groups: groups)
+///
+/// Button("Network Settings…") {
+///     settingsNavigation.select(.network)
+///     openWindow(id: "settings")
+/// }
+/// ```
 @MainActor
 @Observable
 public final class SettingsNavigation<SectionID: Hashable, Destination: Hashable> {
@@ -38,6 +51,18 @@ public final class SettingsNavigation<SectionID: Hashable, Destination: Hashable
             history = []
             currentIndex = nil
         }
+    }
+
+    /// Creates independent navigation state for the sections of settings groups.
+    ///
+    /// Use the same groups as the settings view that displays this navigation,
+    /// so sections can be selected before the view first appears.
+    ///
+    /// - Parameters:
+    ///   - groups: The sidebar groups whose sections can be selected.
+    ///   - initialSection: The initial selection, defaulting to the first section.
+    public convenience init(groups: [SettingsGroup<SectionID>], initialSection: SectionID? = nil) {
+        self.init(sections: SettingsCatalog(groups: groups).sectionIDs, initialSection: initialSection)
     }
 
     /// The current complete location, or `nil` for an empty settings catalog.

@@ -11,6 +11,7 @@ public struct SettingsWindow<SectionID: Hashable, Destination: Hashable, Content
     private let identifier: String
     private let groups: [SettingsGroup<SectionID>]
     private let initialSection: SectionID?
+    private let navigation: SettingsNavigation<SectionID, Destination>?
     private let sidebarEdgeStyle: ScrollEdgeEffectStyle
     private let detailEdgeStyle: ScrollEdgeEffectStyle
     private let destinationTitle: (Destination) -> String
@@ -36,6 +37,37 @@ public struct SettingsWindow<SectionID: Hashable, Destination: Hashable, Content
         identifier = id
         self.groups = groups
         self.initialSection = initialSection
+        navigation = nil
+        self.sidebarEdgeStyle = sidebarEdgeStyle
+        self.detailEdgeStyle = detailEdgeStyle
+        self.destinationTitle = destinationTitle
+        self.content = content
+        self.destinationContent = destinationContent
+    }
+
+    /// Creates a settings window with typed detail destinations whose
+    /// navigation state the caller owns.
+    ///
+    /// Select a section through `navigation` before opening the window with
+    /// `openWindow(id:)` to open settings at that section, or while the window
+    /// is open to switch to it. The navigation state, including its history,
+    /// persists when the window is closed and reopened.
+    public init(
+        _ title: String = "Settings",
+        id: String = "settings",
+        groups: [SettingsGroup<SectionID>],
+        navigation: SettingsNavigation<SectionID, Destination>,
+        sidebarEdgeStyle: ScrollEdgeEffectStyle = .automatic,
+        detailEdgeStyle: ScrollEdgeEffectStyle = .automatic,
+        destinationTitle: @escaping (Destination) -> String,
+        @ContentBuilder content: @escaping (SectionID) -> Content,
+        @ContentBuilder destinationContent: @escaping (Destination) -> DestinationContent
+    ) {
+        self.title = title
+        identifier = id
+        self.groups = groups
+        initialSection = nil
+        self.navigation = navigation
         self.sidebarEdgeStyle = sidebarEdgeStyle
         self.detailEdgeStyle = detailEdgeStyle
         self.destinationTitle = destinationTitle
@@ -45,15 +77,27 @@ public struct SettingsWindow<SectionID: Hashable, Destination: Hashable, Content
 
     public var body: some Scene {
         Window(title, id: identifier) {
-            SettingsView(
-                groups: groups,
-                initialSection: initialSection,
-                sidebarEdgeStyle: sidebarEdgeStyle,
-                detailEdgeStyle: detailEdgeStyle,
-                destinationTitle: destinationTitle,
-                content: content,
-                destinationContent: destinationContent
-            )
+            if let navigation {
+                SettingsView(
+                    groups: groups,
+                    navigation: navigation,
+                    sidebarEdgeStyle: sidebarEdgeStyle,
+                    detailEdgeStyle: detailEdgeStyle,
+                    destinationTitle: destinationTitle,
+                    content: content,
+                    destinationContent: destinationContent
+                )
+            } else {
+                SettingsView(
+                    groups: groups,
+                    initialSection: initialSection,
+                    sidebarEdgeStyle: sidebarEdgeStyle,
+                    detailEdgeStyle: detailEdgeStyle,
+                    destinationTitle: destinationTitle,
+                    content: content,
+                    destinationContent: destinationContent
+                )
+            }
         }
         .defaultSize(width: 940, height: 700)
         .windowResizability(.contentMinSize)
@@ -81,6 +125,32 @@ extension SettingsWindow where Destination == Never, DestinationContent == Empty
             id: id,
             groups: groups,
             initialSection: initialSection,
+            sidebarEdgeStyle: sidebarEdgeStyle,
+            detailEdgeStyle: detailEdgeStyle,
+            destinationTitle: unavailableSettingsDestination,
+            content: content,
+            destinationContent: unavailableSettingsDestination
+        )
+    }
+}
+
+extension SettingsWindow where Destination == Never, DestinationContent == EmptyView {
+    /// Creates a settings window that navigates between sidebar sections only,
+    /// with navigation state that the caller owns.
+    public init(
+        _ title: String = "Settings",
+        id: String = "settings",
+        groups: [SettingsGroup<SectionID>],
+        navigation: SettingsNavigation<SectionID, Never>,
+        sidebarEdgeStyle: ScrollEdgeEffectStyle = .automatic,
+        detailEdgeStyle: ScrollEdgeEffectStyle = .automatic,
+        @ContentBuilder content: @escaping (SectionID) -> Content
+    ) {
+        self.init(
+            title,
+            id: id,
+            groups: groups,
+            navigation: navigation,
             sidebarEdgeStyle: sidebarEdgeStyle,
             detailEdgeStyle: detailEdgeStyle,
             destinationTitle: unavailableSettingsDestination,

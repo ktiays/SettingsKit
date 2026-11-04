@@ -94,6 +94,64 @@ private struct TypedWindowExample: Scene {
     }
 }
 
+private struct ProvidedNavigationExample: View {
+    @State private var navigation = SettingsNavigation<ExampleSection, ExampleDestination>(groups: exampleGroups)
+
+    var body: some View {
+        SettingsView(
+            groups: exampleGroups,
+            navigation: navigation,
+            destinationTitle: { _ in
+                "About"
+            }
+        ) { _ in
+            Button("Show Appearance") {
+                navigation.select(.appearance)
+            }
+        } destinationContent: { _ in
+            CustomRow()
+        }
+    }
+}
+
+private struct SectionsOnlyProvidedNavigationExample: View {
+    @State private var navigation = SettingsNavigation<ExampleSection, Never>(groups: exampleGroups)
+
+    var body: some View {
+        SettingsView(groups: exampleGroups, navigation: navigation) { _ in
+            CustomRow()
+        }
+    }
+}
+
+private struct ProvidedNavigationWindowExample: Scene {
+    @State private var navigation = SettingsNavigation<ExampleSection, Never>(groups: exampleGroups, initialSection: .appearance)
+
+    var body: some Scene {
+        SettingsWindow(groups: exampleGroups, navigation: navigation) { _ in
+            CustomRow()
+        }
+    }
+}
+
+private struct TypedProvidedNavigationWindowExample: Scene {
+    @State private var navigation = SettingsNavigation<ExampleSection, ExampleDestination>(groups: exampleGroups)
+
+    var body: some Scene {
+        SettingsWindow(
+            groups: exampleGroups,
+            navigation: navigation,
+            destinationTitle: { _ in
+                "About"
+            }
+        ) { _ in
+            NavigationLink("About", value: ExampleDestination.about)
+        } destinationContent: { _ in
+            CustomRow()
+        }
+    }
+}
+
 // MARK: - Persistence
 
 private enum ExampleTheme: String, SettingValue, CaseIterable {
