@@ -134,12 +134,16 @@ public struct SettingsView<SectionID: Hashable, Destination: Hashable, Content: 
                 .scrollEdgeEffectStyle(sidebarEdgeStyle, for: .top)
                 .navigationSplitViewColumnWidth(min: 220, ideal: 250, max: 320)
         } detail: {
-            if let section = navigation.location?.section, let metadata = catalog[section] {
-                detailColumn(for: section, title: metadata.title)
-            } else {
-                ContentUnavailableView("No Settings Available", systemImage: "gearshape")
-                    .navigationTitle("Settings")
+            Group {
+                if let section = navigation.location?.section, let metadata = catalog[section] {
+                    detailColumn(for: section, title: metadata.title)
+                } else {
+                    ContentUnavailableView("No Settings Available", systemImage: "gearshape")
+                        .navigationTitle("Settings")
+                }
             }
+            // Column minimums let the split view rebalance widths as the window narrows.
+            .navigationSplitViewColumnWidth(min: 440, ideal: 690)
         }
         .navigationSplitViewStyle(.balanced)
         .searchable(text: $searchText, placement: .sidebar)
@@ -154,7 +158,7 @@ public struct SettingsView<SectionID: Hashable, Destination: Hashable, Content: 
                 navigation.goForward()
             }
         ))
-        .frame(minWidth: 760, minHeight: 540)
+        .frame(minHeight: 540)
         .onChange(of: catalog.sectionIDs, initial: true) { _, identifiers in
             navigation.updateSections(identifiers)
         }

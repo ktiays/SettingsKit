@@ -76,7 +76,7 @@ private struct ExampleWindowCommands: Commands {
             }
             Divider()
             Button("Use Compact Window Size") {
-                NSApp.keyWindow?.setContentSize(NSSize(width: 760, height: 720))
+                NSApp.keyWindow?.setContentSize(NSSize(width: 660, height: 720))
             }
             Button("Use Default Window Size") {
                 NSApp.keyWindow?.setContentSize(NSSize(width: 940, height: 700))
